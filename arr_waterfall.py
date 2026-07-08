@@ -114,10 +114,37 @@ def add_sanity_check(waterfall: pd.DataFrame) -> pd.DataFrame:
     return waterfall
 
 
+def add_nrr(waterfall: pd.DataFrame) -> pd.DataFrame:
+    """Net Revenue Retention: how existing customers' ARR moved, as a % of
+    where they started. Excludes new_arr on purpose -- NRR is about the
+    existing cohort only, not net-new logos.
+
+    NRR% = (starting_arr + expansion_arr - contraction_arr - churned_arr)
+           / starting_arr * 100
+
+    The first month has no prior cohort (starting_arr == 0), so NRR is
+    undefined there and left as NaN rather than divided by zero.
+    """
+    waterfall = waterfall.copy()
+    retained_arr = (
+        waterfall["starting_arr"]
+        + waterfall["expansion_arr"]
+        - waterfall["contraction_arr"]
+        - waterfall["churned_arr"]
+    )
+    waterfall["nrr_pct"] = np.where(
+        waterfall["starting_arr"] > 0,
+        (retained_arr / waterfall["starting_arr"] * 100).round(1),
+        np.nan,
+    )
+    return waterfall
+
+
 def main():
     df = load_subscriptions(INPUT_CSV)
     waterfall = build_waterfall(df, START_MONTH, END_MONTH)
     checked = add_sanity_check(waterfall)
+    checked = add_nrr(checked)
 
     checked.drop(columns=["computed_ending_arr", "reconciles"]).to_csv(
         OUTPUT_CSV, index=False
