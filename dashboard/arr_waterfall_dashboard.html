@@ -1,0 +1,992 @@
+<title>ARR waterfall — drill-down</title>
+<style>
+  :root {
+    --bg: #f5f4f1;
+    --surface: #ffffff;
+    --surface-2: #faf9f6;
+    --ink: #171a1e;
+    --ink-soft: #565f6b;
+    --ink-mute: #8b93a0;
+    --line: #e4e2dc;
+    --accent: #2a5d8f;
+    --accent-soft: #e4edf6;
+    --good: #1f7a4d;
+    --good-bg: #e5f3ec;
+    --critical: #b23b3b;
+    --critical-bg: #f8e9e8;
+    --starter-bg: #eef2f6;   --starter-fg: #55677a;
+    --growth-bg:  #dbe8f4;   --growth-fg:  #1f4f7a;
+    --ent-bg:     #1f3a52;   --ent-fg:     #ffffff;
+    --flow-new: #2a78d6;      --flow-new-tint: #86b6ef;
+    --flow-neg: #e34948;      --flow-neg-tint: #f09c9a;
+    --tooltip-bg: #171a1e; --tooltip-fg: #f5f4f1; --tooltip-key: rgba(245,244,241,0.7);
+    --shadow: 0 1px 2px rgba(23,26,30,0.06), 0 8px 24px rgba(23,26,30,0.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a; --surface: #1c1f24; --surface-2: #21252b;
+      --ink: #f2f1ec; --ink-soft: #b7bcc4; --ink-mute: #7c828c;
+      --line: #2c3036; --accent: #7fb2e0; --accent-soft: #23374a;
+      --good: #55c493; --good-bg: #16301f;
+      --critical: #e2867e; --critical-bg: #3a2020;
+      --starter-bg: #262a30; --starter-fg: #9aa4b0;
+      --growth-bg: #1e3348; --growth-fg: #8fc0e8;
+      --ent-bg: #7fb2e0; --ent-fg: #10202e;
+      --flow-new: #62a0e8; --flow-new-tint: #476fa0;
+      --flow-neg: #e66767; --flow-neg-tint: #9d4b4c;
+      --tooltip-bg: #f2f1ec; --tooltip-fg: #14161a; --tooltip-key: rgba(20,22,26,0.65);
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14161a; --surface: #1c1f24; --surface-2: #21252b;
+    --ink: #f2f1ec; --ink-soft: #b7bcc4; --ink-mute: #7c828c;
+    --line: #2c3036; --accent: #7fb2e0; --accent-soft: #23374a;
+    --good: #55c493; --good-bg: #16301f;
+    --critical: #e2867e; --critical-bg: #3a2020;
+    --starter-bg: #262a30; --starter-fg: #9aa4b0;
+    --growth-bg: #1e3348; --growth-fg: #8fc0e8;
+    --ent-bg: #7fb2e0; --ent-fg: #10202e;
+    --flow-new: #62a0e8; --flow-new-tint: #476fa0;
+    --flow-neg: #e66767; --flow-neg-tint: #9d4b4c;
+    --tooltip-bg: #f2f1ec; --tooltip-fg: #14161a; --tooltip-key: rgba(20,22,26,0.65);
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+  }
+  :root[data-theme="light"] {
+    --bg: #f5f4f1; --surface: #ffffff; --surface-2: #faf9f6;
+    --ink: #171a1e; --ink-soft: #565f6b; --ink-mute: #8b93a0;
+    --line: #e4e2dc; --accent: #2a5d8f; --accent-soft: #e4edf6;
+    --good: #1f7a4d; --good-bg: #e5f3ec;
+    --critical: #b23b3b; --critical-bg: #f8e9e8;
+    --starter-bg: #eef2f6; --starter-fg: #55677a;
+    --growth-bg: #dbe8f4; --growth-fg: #1f4f7a;
+    --ent-bg: #1f3a52; --ent-fg: #ffffff;
+    --flow-new: #2a78d6; --flow-new-tint: #86b6ef;
+    --flow-neg: #e34948; --flow-neg-tint: #f09c9a;
+    --tooltip-bg: #171a1e; --tooltip-fg: #f5f4f1; --tooltip-key: rgba(245,244,241,0.7);
+    --shadow: 0 1px 2px rgba(23,26,30,0.06), 0 8px 24px rgba(23,26,30,0.05);
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "SF Pro Text", "Segoe UI", sans-serif;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+  body { padding: 28px 28px 72px; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+
+  header.page {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 24px; margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .title-block h1 { font-size: 22px; font-weight: 650; margin: 0 0 4px; letter-spacing: -0.01em; text-wrap: balance; }
+  .title-block .path { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; color: var(--ink-mute); }
+
+  .stat-strip { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 12px; margin-bottom: 22px; }
+  .stat-tile { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; box-shadow: var(--shadow); }
+  .stat-tile .label { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-mute); margin-bottom: 6px; }
+  .stat-tile .value { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  .stat-tile .value.good { color: var(--good); }
+  .stat-tile .value.critical { color: var(--critical); }
+
+  .chart-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    box-shadow: var(--shadow); padding: 18px 20px 8px; margin-bottom: 16px;
+  }
+  .chart-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; flex-wrap: wrap; gap: 10px; }
+  .chart-head h2 { font-size: 14.5px; font-weight: 650; margin: 0; }
+  .chart-sub { font-size: 12px; color: var(--ink-mute); margin: -2px 0 0; }
+
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-soft); }
+  .legend-swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+  button.link-btn {
+    background: none; border: 1px solid var(--line); color: var(--ink-soft);
+    font-size: 12px; padding: 5px 10px; border-radius: 7px; cursor: pointer;
+    font-family: inherit;
+  }
+  button.link-btn:hover { border-color: var(--accent); color: var(--accent); }
+  button.link-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
+  svg.chart text { font-family: system-ui, sans-serif; fill: var(--ink-mute); }
+  .grid-line { stroke: var(--line); stroke-width: 1; shape-rendering: crispEdges; }
+  .baseline { stroke: var(--ink-mute); stroke-width: 1.2; }
+  .axis-label { font-size: 10.5px; }
+  .axis-label.selected { fill: var(--accent); font-weight: 700; }
+
+  .hover-band { fill: var(--accent-soft); opacity: 0; pointer-events: none; }
+  .select-band { fill: var(--accent-soft); opacity: 0; }
+  .select-band.is-selected { opacity: 0.55; }
+
+  .line-path { fill: none; stroke: var(--flow-new); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .line-dot { fill: var(--flow-new); stroke: var(--surface); stroke-width: 1.5; }
+  .line-dot.is-selected { r: 6; stroke-width: 2; }
+  .crosshair { stroke: var(--ink-mute); stroke-width: 1; opacity: 0; pointer-events: none; }
+
+  .bar-seg { cursor: pointer; }
+  .bar-seg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .hit-col { fill: transparent; cursor: pointer; }
+  .hit-col:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  .tooltip {
+    position: fixed; pointer-events: none; z-index: 50;
+    background: var(--tooltip-bg); color: var(--tooltip-fg);
+    border-radius: 8px; padding: 8px 10px; font-size: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    opacity: 0; transform: translate(-50%, -100%); transition: opacity 100ms ease;
+    max-width: 220px;
+  }
+  .tooltip.is-visible { opacity: 1; }
+  .tooltip .tt-title { font-weight: 650; margin-bottom: 4px; }
+  .tooltip .tt-row { display: flex; align-items: center; gap: 12px; justify-content: space-between; }
+  .tooltip .tt-key { display: flex; align-items: center; gap: 5px; color: var(--tooltip-key); }
+  .tooltip .tt-swatch { width: 8px; height: 2px; border-radius: 1px; display: inline-block; }
+  .tooltip .tt-val { font-variant-numeric: tabular-nums; font-weight: 650; }
+
+  .table-view { display: none; margin: -4px 0 16px; }
+  .table-view.is-visible { display: block; }
+  .table-view .table-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+  .table-view .table-scroll { overflow-x: auto; }
+  .table-view table { border-collapse: collapse; width: 100%; min-width: 720px; }
+  .table-view th, .table-view td {
+    padding: 8px 12px; font-size: 12.5px; text-align: right; border-bottom: 1px solid var(--line);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .table-view th { text-align: right; background: var(--surface-2); color: var(--ink-mute); font-family: system-ui, sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; position: sticky; top: 0; }
+  .table-view th:first-child, .table-view td:first-child { text-align: left; font-family: system-ui, sans-serif; color: var(--ink); font-weight: 600; }
+  .table-view tbody tr:hover { background: var(--surface-2); }
+
+  section.drilldown {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    box-shadow: var(--shadow); padding: 20px 22px 24px;
+  }
+  .drill-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+  .drill-head h2 { font-size: 16px; margin: 0; font-weight: 650; }
+  .drill-head h2 .accent { color: var(--accent); }
+
+  .recon {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    font-size: 12.5px; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums; color: var(--ink-soft);
+  }
+  .recon b { color: var(--ink); font-weight: 650; }
+  .recon .op { color: var(--ink-mute); font-family: system-ui, sans-serif; }
+  .recon .plus { color: var(--good); }
+  .recon .minus { color: var(--critical); }
+  .recon-check {
+    display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px 2px 7px;
+    border-radius: 999px; font-size: 11.5px; font-weight: 650; font-family: system-ui, sans-serif;
+    background: var(--good-bg); color: var(--good);
+  }
+  .recon-check::before { content: ""; width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+  .nrr-pill {
+    display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; margin-left: 4px;
+    border-radius: 999px; font-size: 11.5px; font-weight: 650; font-family: system-ui, sans-serif;
+    background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-soft);
+  }
+  .nrr-pill.pos { background: var(--good-bg); color: var(--good); border-color: transparent; }
+  .nrr-pill.neg { background: var(--critical-bg); color: var(--critical); border-color: transparent; }
+
+  .nrr-math-body { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; padding: 10px 4px 16px; }
+  .nrr-frac { display: flex; flex-direction: column; align-items: stretch; min-width: 260px; }
+  .nrr-frac .term {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 18px;
+    padding: 3px 2px; font-size: 13.5px;
+  }
+  .nrr-frac .term .t-label { color: var(--ink-soft); display: flex; align-items: baseline; gap: 6px; }
+  .nrr-frac .term .t-sign { font-weight: 700; width: 12px; display: inline-block; text-align: center; }
+  .nrr-frac .term .t-sign.plus { color: var(--good); }
+  .nrr-frac .term .t-sign.minus { color: var(--critical); }
+  .nrr-frac .term .t-val {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-variant-numeric: tabular-nums;
+    font-weight: 600; color: var(--ink);
+  }
+  .nrr-frac .bar { border-top: 2px solid var(--ink); margin: 5px 0 3px; }
+  .nrr-frac .den .t-label { font-weight: 650; color: var(--ink); }
+  .nrr-frac .num-label {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-mute);
+    padding: 0 2px 2px;
+  }
+
+  .nrr-equals { font-size: 26px; color: var(--ink-mute); font-weight: 300; }
+
+  .nrr-result { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+  .nrr-result .r-label { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-mute); }
+  .nrr-result .r-value { font-size: 34px; font-weight: 650; letter-spacing: -0.01em; }
+  .nrr-result .r-value.pos { color: var(--good); }
+  .nrr-result .r-value.neg { color: var(--critical); }
+
+  .nrr-note {
+    flex: 1 1 240px; min-width: 220px; font-size: 13px; color: var(--ink-soft);
+    background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 13px; line-height: 1.5;
+  }
+  .nrr-note b { color: var(--ink); }
+
+  @media (max-width: 760px) {
+    .nrr-math-body { flex-direction: column; align-items: stretch; }
+    .nrr-equals { align-self: center; transform: rotate(90deg); }
+  }
+
+  .drill-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; margin-top: 16px; }
+  .drill-panel { background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; min-height: 92px; }
+  .drill-panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .drill-panel-head .name { font-size: 12px; font-weight: 650; display: flex; align-items: center; gap: 6px; }
+  .drill-panel-head .name::before { content: ""; width: 8px; height: 8px; border-radius: 3px; background: var(--dot); }
+  .drill-panel-head .amount { font-size: 12.5px; font-variant-numeric: tabular-nums; font-weight: 650; }
+  .drill-panel.new { --dot: var(--flow-new); }
+  .drill-panel.expansion { --dot: var(--flow-new-tint); }
+  .drill-panel.contraction { --dot: var(--flow-neg-tint); }
+  .drill-panel.churned { --dot: var(--flow-neg); }
+
+  .drill-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .drill-list li { display: flex; flex-direction: column; gap: 1px; font-size: 12px; padding: 5px 7px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); }
+  .drill-row1 { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .drill-id { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--ink); font-weight: 600; }
+  .drill-plan { font-size: 10px; padding: 1px 6px; border-radius: 5px; font-weight: 650; }
+  .drill-plan.starter { background: var(--starter-bg); color: var(--starter-fg); }
+  .drill-plan.growth { background: var(--growth-bg); color: var(--growth-fg); }
+  .drill-plan.enterprise { background: var(--ent-bg); color: var(--ent-fg); }
+  .drill-val { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; font-weight: 650; }
+  .drill-val.pos { color: var(--good); }
+  .drill-val.neg { color: var(--critical); }
+  .drill-meta { font-size: 10.5px; color: var(--ink-mute); font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  .drill-empty { font-size: 12px; color: var(--ink-mute); padding: 8px 2px; }
+
+  @media (max-width: 900px) {
+    .stat-strip { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .drill-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  }
+  @media (max-width: 560px) {
+    .drill-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="page">
+    <div class="title-block">
+      <h1>ARR waterfall</h1>
+      <div class="path">subscriptions.csv · Jan 2025 – Jun 2026</div>
+    </div>
+  </header>
+
+  <div class="stat-strip">
+    <div class="stat-tile"><div class="label">Starting ARR (Jan 2025)</div><div class="value">$669K</div></div>
+    <div class="stat-tile"><div class="label">Ending ARR (Jun 2026)</div><div class="value">$2.44M</div></div>
+    <div class="stat-tile"><div class="label">Total new ARR added</div><div class="value good">$1.99M</div></div>
+    <div class="stat-tile"><div class="label">Total ARR churned</div><div class="value critical">$302K</div></div>
+    <div class="stat-tile"><div class="label">Avg net revenue retention</div><div class="value" id="avgNrrValue">—</div></div>
+  </div>
+
+  <section class="chart-card">
+    <div class="chart-head">
+      <div>
+        <h2>Ending ARR</h2>
+        <p class="chart-sub">Hover for exact values · click a point to drill into that month</p>
+      </div>
+      <button class="link-btn" id="toggleTable" type="button" aria-expanded="false">View as table</button>
+    </div>
+    <svg class="chart" id="lineChart" viewBox="0 0 1100 240" role="img" aria-label="Line chart of ending ARR from January 2025 to June 2026"></svg>
+  </section>
+
+  <section class="chart-card">
+    <div class="chart-head">
+      <div>
+        <h2>Monthly waterfall</h2>
+        <p class="chart-sub">New + expansion above zero, contraction + churn below · click a month to drill in</p>
+      </div>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--flow-new)"></span>New</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--flow-new-tint)"></span>Expansion</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--flow-neg-tint)"></span>Contraction</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--flow-neg)"></span>Churned</span>
+      </div>
+    </div>
+    <svg class="chart" id="barChart" viewBox="0 0 1100 380" role="img" aria-label="Diverging stacked bar chart of monthly ARR waterfall components"></svg>
+  </section>
+
+  <section class="chart-card">
+    <div class="chart-head">
+      <div>
+        <h2>Net revenue retention</h2>
+        <p class="chart-sub">Existing customers only — (starting + expansion − contraction − churn) ÷ starting. Excludes new logos on purpose.</p>
+      </div>
+    </div>
+    <svg class="chart" id="nrrChart" viewBox="0 0 1100 190" role="img" aria-label="Line chart of net revenue retention percentage from January 2025 to June 2026"></svg>
+  </section>
+
+  <section class="chart-card">
+    <div class="chart-head">
+      <div>
+        <h2>How NRR is calculated — <span class="accent" id="nrrMathMonth"></span></h2>
+        <p class="chart-sub">Follows the point selected above · new-logo ARR is excluded from both the numerator and denominator</p>
+      </div>
+    </div>
+    <div class="nrr-math-body" id="nrrMathBody"></div>
+  </section>
+
+  <div class="table-view" id="tableView">
+    <div class="table-card">
+      <div class="table-scroll">
+        <table id="dataTable">
+          <thead>
+            <tr>
+              <th>Month</th><th>Starting</th><th>New</th><th>Expansion</th>
+              <th>Contraction</th><th>Churned</th><th>Ending</th><th>NRR</th>
+            </tr>
+          </thead>
+          <tbody id="dataTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <section class="drilldown" id="drilldown">
+    <div class="drill-head">
+      <h2>Customer detail — <span class="accent" id="drillTitle"></span></h2>
+      <div class="recon" id="reconLine"></div>
+    </div>
+    <div class="drill-grid" id="drillGrid"></div>
+  </section>
+</div>
+
+<div class="tooltip" id="tooltip" role="status" aria-live="polite"></div>
+
+<script>
+const DATA = [{"month":"2025-01","label":"January 2025","short":"Jan","year":2025,"starting":668597.4,"new":60288.6,"expansion":0.0,"contraction":1707.72,"churned":68970.12,"ending":658208.16,"nrr":89.4,"newCustomers":[{"id":1041,"plan":"Growth","mrr":1603.73,"date":"2025-01-26"},{"id":1042,"plan":"Growth","mrr":1344.66,"date":"2025-01-10"},{"id":1040,"plan":"Starter","mrr":542.61,"date":"2025-01-15"},{"id":1043,"plan":"Starter","mrr":535.36,"date":"2025-01-02"},{"id":1045,"plan":"Starter","mrr":501.17,"date":"2025-01-28"},{"id":1044,"plan":"Starter","mrr":496.52,"date":"2025-01-28"}],"expansionCustomers":[],"contractionCustomers":[{"id":1019,"plan":"Starter","fromMrr":574.42,"toMrr":432.11,"delta":142.31,"date":"2025-01-22"}],"churnedCustomers":[{"id":1012,"plan":"Enterprise","mrr":4168.0,"date":"2025-01-08"},{"id":1001,"plan":"Growth","mrr":1579.51,"date":"2025-01-01"}]},{"month":"2025-02","label":"February 2025","short":"Feb","year":2025,"starting":658208.16,"new":131150.52,"expansion":2018.16,"contraction":0.0,"churned":18199.68,"ending":773177.16,"nrr":97.5,"newCustomers":[{"id":1047,"plan":"Enterprise","mrr":3695.46,"date":"2025-02-20"},{"id":1049,"plan":"Enterprise","mrr":3645.11,"date":"2025-02-23"},{"id":1052,"plan":"Growth","mrr":1528.35,"date":"2025-02-04"},{"id":1046,"plan":"Starter","mrr":554.27,"date":"2025-02-13"},{"id":1051,"plan":"Starter","mrr":537.78,"date":"2025-02-03"},{"id":1048,"plan":"Starter","mrr":523.61,"date":"2025-02-19"},{"id":1050,"plan":"Starter","mrr":444.63,"date":"2025-02-21"}],"expansionCustomers":[{"id":1008,"plan":"Starter","fromMrr":435.43,"toMrr":603.61,"delta":168.18,"date":"2025-02-28"}],"contractionCustomers":[],"churnedCustomers":[{"id":1020,"plan":"Growth","mrr":1516.64,"date":"2025-02-10"}]},{"month":"2025-03","label":"March 2025","short":"Mar","year":2025,"starting":773177.16,"new":91242.96,"expansion":31096.32,"contraction":0.0,"churned":6424.32,"ending":889092.12,"nrr":103.2,"newCustomers":[{"id":1055,"plan":"Enterprise","mrr":4368.52,"date":"2025-03-17"},{"id":1056,"plan":"Growth","mrr":1409.72,"date":"2025-03-22"},{"id":1053,"plan":"Growth","mrr":1334.61,"date":"2025-03-12"},{"id":1054,"plan":"Starter","mrr":490.73,"date":"2025-03-18"}],"expansionCustomers":[{"id":1038,"plan":"Enterprise","fromMrr":4403.23,"toMrr":6994.59,"delta":2591.36,"date":"2025-03-14"}],"contractionCustomers":[],"churnedCustomers":[{"id":1043,"plan":"Starter","mrr":535.36,"date":"2025-03-17"}]},{"month":"2025-04","label":"April 2025","short":"Apr","year":2025,"starting":889092.12,"new":85779.72,"expansion":11297.52,"contraction":0.0,"churned":6070.68,"ending":980098.68,"nrr":100.6,"newCustomers":[{"id":1060,"plan":"Enterprise","mrr":4415.32,"date":"2025-04-03"},{"id":1059,"plan":"Growth","mrr":1658.81,"date":"2025-04-17"},{"id":1057,"plan":"Starter","mrr":558.46,"date":"2025-04-24"},{"id":1058,"plan":"Starter","mrr":515.72,"date":"2025-04-23"}],"expansionCustomers":[{"id":1027,"plan":"Growth","fromMrr":1708.96,"toMrr":2476.93,"delta":767.97,"date":"2025-04-23"},{"id":1024,"plan":"Starter","fromMrr":441.78,"toMrr":615.27,"delta":173.49,"date":"2025-04-02"}],"contractionCustomers":[],"churnedCustomers":[{"id":1032,"plan":"Starter","mrr":505.89,"date":"2025-04-26"}]},{"month":"2025-05","label":"May 2025","short":"May","year":2025,"starting":980098.68,"new":147872.4,"expansion":0.0,"contraction":0.0,"churned":0.0,"ending":1127971.08,"nrr":100.0,"newCustomers":[{"id":1062,"plan":"Enterprise","mrr":3593.9,"date":"2025-05-15"},{"id":1069,"plan":"Enterprise","mrr":3429.74,"date":"2025-05-24"},{"id":1064,"plan":"Growth","mrr":1650.57,"date":"2025-05-19"},{"id":1068,"plan":"Growth","mrr":1344.55,"date":"2025-05-08"},{"id":1067,"plan":"Starter","mrr":542.02,"date":"2025-05-28"},{"id":1066,"plan":"Starter","mrr":478.67,"date":"2025-05-22"},{"id":1065,"plan":"Starter","mrr":431.27,"date":"2025-05-12"},{"id":1063,"plan":"Starter","mrr":426.45,"date":"2025-05-03"},{"id":1061,"plan":"Starter","mrr":425.53,"date":"2025-05-25"}],"expansionCustomers":[],"contractionCustomers":[],"churnedCustomers":[]},{"month":"2025-06","label":"June 2025","short":"Jun","year":2025,"starting":1127971.08,"new":192564.24,"expansion":0.0,"contraction":0.0,"churned":5832.72,"ending":1314702.6,"nrr":99.5,"newCustomers":[{"id":1076,"plan":"Enterprise","mrr":4043.46,"date":"2025-06-01"},{"id":1077,"plan":"Enterprise","mrr":3614.28,"date":"2025-06-09"},{"id":1073,"plan":"Growth","mrr":1667.1,"date":"2025-06-08"},{"id":1070,"plan":"Growth","mrr":1605.78,"date":"2025-06-08"},{"id":1075,"plan":"Growth","mrr":1433.02,"date":"2025-06-17"},{"id":1078,"plan":"Growth","mrr":1430.56,"date":"2025-06-26"},{"id":1071,"plan":"Growth","mrr":1323.64,"date":"2025-06-28"},{"id":1074,"plan":"Starter","mrr":474.24,"date":"2025-06-28"},{"id":1072,"plan":"Starter","mrr":454.94,"date":"2025-06-15"}],"expansionCustomers":[],"contractionCustomers":[],"churnedCustomers":[{"id":1033,"plan":"Starter","mrr":486.06,"date":"2025-06-14"}]},{"month":"2025-07","label":"July 2025","short":"Jul","year":2025,"starting":1314702.6,"new":144950.4,"expansion":4674.84,"contraction":0.0,"churned":0.0,"ending":1464327.84,"nrr":100.4,"newCustomers":[{"id":1081,"plan":"Enterprise","mrr":4284.45,"date":"2025-07-07"},{"id":1079,"plan":"Enterprise","mrr":3538.77,"date":"2025-07-19"},{"id":1084,"plan":"Growth","mrr":1421.78,"date":"2025-07-23"},{"id":1083,"plan":"Growth","mrr":1331.08,"date":"2025-07-10"},{"id":1082,"plan":"Starter","mrr":524.64,"date":"2025-07-11"},{"id":1080,"plan":"Starter","mrr":490.41,"date":"2025-07-17"},{"id":1085,"plan":"Starter","mrr":488.07,"date":"2025-07-13"}],"expansionCustomers":[{"id":1016,"plan":"Starter","fromMrr":536.75,"toMrr":815.6,"delta":278.85,"date":"2025-07-19"},{"id":1018,"plan":"Starter","fromMrr":441.45,"toMrr":552.17,"delta":110.72,"date":"2025-07-20"}],"contractionCustomers":[],"churnedCustomers":[]},{"month":"2025-08","label":"August 2025","short":"Aug","year":2025,"starting":1464327.84,"new":81648.0,"expansion":0.0,"contraction":0.0,"churned":0.0,"ending":1545975.84,"nrr":100.0,"newCustomers":[{"id":1089,"plan":"Enterprise","mrr":4355.23,"date":"2025-08-06"},{"id":1086,"plan":"Growth","mrr":1410.43,"date":"2025-08-18"},{"id":1088,"plan":"Starter","mrr":526.34,"date":"2025-08-17"},{"id":1087,"plan":"Starter","mrr":512.0,"date":"2025-08-21"}],"expansionCustomers":[],"contractionCustomers":[],"churnedCustomers":[]},{"month":"2025-09","label":"September 2025","short":"Sep","year":2025,"starting":1545975.84,"new":110640.6,"expansion":4727.16,"contraction":4682.28,"churned":0.0,"ending":1656661.32,"nrr":100.0,"newCustomers":[{"id":1096,"plan":"Enterprise","mrr":4021.55,"date":"2025-09-02"},{"id":1095,"plan":"Growth","mrr":1621.52,"date":"2025-09-04"},{"id":1090,"plan":"Growth","mrr":1553.67,"date":"2025-09-03"},{"id":1091,"plan":"Starter","mrr":545.98,"date":"2025-09-05"},{"id":1093,"plan":"Starter","mrr":519.46,"date":"2025-09-07"},{"id":1092,"plan":"Starter","mrr":496.27,"date":"2025-09-28"},{"id":1094,"plan":"Starter","mrr":461.6,"date":"2025-09-21"}],"expansionCustomers":[{"id":1025,"plan":"Growth","fromMrr":1310.44,"toMrr":1704.37,"delta":393.93,"date":"2025-09-25"}],"contractionCustomers":[{"id":1023,"plan":"Growth","fromMrr":1343.78,"toMrr":953.59,"delta":390.19,"date":"2025-09-01"}],"churnedCustomers":[]},{"month":"2025-10","label":"October 2025","short":"Oct","year":2025,"starting":1656661.32,"new":104147.04,"expansion":22630.92,"contraction":0.0,"churned":11103.96,"ending":1772335.32,"nrr":100.7,"newCustomers":[{"id":1098,"plan":"Growth","mrr":1702.52,"date":"2025-10-15"},{"id":1101,"plan":"Growth","mrr":1619.62,"date":"2025-10-17"},{"id":1099,"plan":"Growth","mrr":1502.15,"date":"2025-10-27"},{"id":1100,"plan":"Growth","mrr":1488.6,"date":"2025-10-09"},{"id":1102,"plan":"Starter","mrr":490.98,"date":"2025-10-23"},{"id":1104,"plan":"Starter","mrr":482.46,"date":"2025-10-05"},{"id":1105,"plan":"Starter","mrr":474.63,"date":"2025-10-15"},{"id":1103,"plan":"Starter","mrr":472.96,"date":"2025-10-18"},{"id":1097,"plan":"Starter","mrr":445.0,"date":"2025-10-15"}],"expansionCustomers":[{"id":1007,"plan":"Enterprise","fromMrr":3854.24,"toMrr":5740.15,"delta":1885.91,"date":"2025-10-28"}],"contractionCustomers":[],"churnedCustomers":[{"id":1054,"plan":"Starter","mrr":490.73,"date":"2025-10-20"},{"id":1029,"plan":"Starter","mrr":434.6,"date":"2025-10-08"}]},{"month":"2025-11","label":"November 2025","short":"Nov","year":2025,"starting":1772335.32,"new":96960.84,"expansion":0.0,"contraction":1570.92,"churned":22919.64,"ending":1844805.6,"nrr":98.6,"newCustomers":[{"id":1109,"plan":"Enterprise","mrr":4402.87,"date":"2025-11-18"},{"id":1107,"plan":"Growth","mrr":1660.53,"date":"2025-11-25"},{"id":1106,"plan":"Growth","mrr":1450.26,"date":"2025-11-25"},{"id":1108,"plan":"Starter","mrr":566.41,"date":"2025-11-10"}],"expansionCustomers":[],"contractionCustomers":[{"id":1010,"plan":"Starter","fromMrr":456.43,"toMrr":325.52,"delta":130.91,"date":"2025-11-03"}],"churnedCustomers":[{"id":1022,"plan":"Growth","mrr":1355.39,"date":"2025-11-17"},{"id":1034,"plan":"Starter","mrr":554.58,"date":"2025-11-04"}]},{"month":"2025-12","label":"December 2025","short":"Dec","year":2025,"starting":1844805.6,"new":168872.88,"expansion":15662.88,"contraction":939.72,"churned":63571.08,"ending":1964830.56,"nrr":97.4,"newCustomers":[{"id":1118,"plan":"Enterprise","mrr":3819.95,"date":"2025-12-21"},{"id":1116,"plan":"Enterprise","mrr":3733.91,"date":"2025-12-27"},{"id":1112,"plan":"Growth","mrr":1653.23,"date":"2025-12-05"},{"id":1117,"plan":"Growth","mrr":1486.64,"date":"2025-12-24"},{"id":1110,"plan":"Growth","mrr":1374.24,"date":"2025-12-08"},{"id":1114,"plan":"Starter","mrr":555.03,"date":"2025-12-06"},{"id":1113,"plan":"Starter","mrr":509.66,"date":"2025-12-01"},{"id":1111,"plan":"Starter","mrr":483.33,"date":"2025-12-22"},{"id":1115,"plan":"Starter","mrr":456.75,"date":"2025-12-11"}],"expansionCustomers":[{"id":1095,"plan":"Growth","fromMrr":1621.52,"toMrr":2116.95,"delta":495.43,"date":"2025-12-29"},{"id":1053,"plan":"Growth","fromMrr":1334.61,"toMrr":1797.14,"delta":462.53,"date":"2025-12-22"},{"id":1006,"plan":"Starter","fromMrr":552.12,"toMrr":899.4,"delta":347.28,"date":"2025-12-15"}],"contractionCustomers":[{"id":1063,"plan":"Starter","fromMrr":426.45,"toMrr":348.14,"delta":78.31,"date":"2025-12-25"}],"churnedCustomers":[{"id":1089,"plan":"Enterprise","mrr":4355.23,"date":"2025-12-16"},{"id":1104,"plan":"Starter","mrr":482.46,"date":"2025-12-20"},{"id":1002,"plan":"Starter","mrr":459.9,"date":"2025-12-21"}]},{"month":"2026-01","label":"January 2026","short":"Jan","year":2026,"starting":1964830.56,"new":128729.52,"expansion":21428.4,"contraction":1527.72,"churned":0.0,"ending":2113460.76,"nrr":101.0,"newCustomers":[{"id":1124,"plan":"Enterprise","mrr":4090.96,"date":"2026-01-13"},{"id":1123,"plan":"Growth","mrr":1709.12,"date":"2026-01-04"},{"id":1126,"plan":"Growth","mrr":1657.63,"date":"2026-01-20"},{"id":1125,"plan":"Growth","mrr":1309.2,"date":"2026-01-23"},{"id":1121,"plan":"Starter","mrr":567.16,"date":"2026-01-15"},{"id":1122,"plan":"Starter","mrr":515.88,"date":"2026-01-24"},{"id":1120,"plan":"Starter","mrr":447.86,"date":"2026-01-05"},{"id":1119,"plan":"Starter","mrr":429.65,"date":"2026-01-08"}],"expansionCustomers":[{"id":1068,"plan":"Growth","fromMrr":1344.55,"toMrr":2267.53,"delta":922.98,"date":"2026-01-27"},{"id":1086,"plan":"Growth","fromMrr":1410.43,"toMrr":1935.32,"delta":524.89,"date":"2026-01-02"},{"id":1065,"plan":"Starter","fromMrr":431.27,"toMrr":769.1,"delta":337.83,"date":"2026-01-30"}],"contractionCustomers":[{"id":1080,"plan":"Starter","fromMrr":490.41,"toMrr":363.1,"delta":127.31,"date":"2026-01-30"}],"churnedCustomers":[]},{"month":"2026-02","label":"February 2026","short":"Feb","year":2026,"starting":2113460.76,"new":101481.96,"expansion":0.0,"contraction":7170.12,"churned":6233.52,"ending":2201539.08,"nrr":99.4,"newCustomers":[{"id":1130,"plan":"Growth","mrr":1593.29,"date":"2026-02-14"},{"id":1131,"plan":"Growth","mrr":1567.71,"date":"2026-02-20"},{"id":1132,"plan":"Growth","mrr":1484.19,"date":"2026-02-27"},{"id":1127,"plan":"Growth","mrr":1431.24,"date":"2026-02-14"},{"id":1128,"plan":"Growth","mrr":1428.55,"date":"2026-02-28"},{"id":1129,"plan":"Starter","mrr":490.03,"date":"2026-02-12"},{"id":1133,"plan":"Starter","mrr":461.82,"date":"2026-02-03"}],"expansionCustomers":[],"contractionCustomers":[{"id":1069,"plan":"Enterprise","fromMrr":3429.74,"toMrr":2832.23,"delta":597.51,"date":"2026-02-08"}],"churnedCustomers":[{"id":1093,"plan":"Starter","mrr":519.46,"date":"2026-02-12"}]},{"month":"2026-03","label":"March 2026","short":"Mar","year":2026,"starting":2201539.08,"new":90756.12,"expansion":0.0,"contraction":0.0,"churned":5955.24,"ending":2286339.96,"nrr":99.7,"newCustomers":[{"id":1137,"plan":"Enterprise","mrr":4066.95,"date":"2026-03-17"},{"id":1139,"plan":"Growth","mrr":1476.68,"date":"2026-03-01"},{"id":1135,"plan":"Starter","mrr":552.64,"date":"2026-03-06"},{"id":1138,"plan":"Starter","mrr":508.28,"date":"2026-03-08"},{"id":1134,"plan":"Starter","mrr":494.71,"date":"2026-03-20"},{"id":1136,"plan":"Starter","mrr":463.75,"date":"2026-03-09"}],"expansionCustomers":[],"contractionCustomers":[],"churnedCustomers":[{"id":1092,"plan":"Starter","mrr":496.27,"date":"2026-03-23"}]},{"month":"2026-04","label":"April 2026","short":"Apr","year":2026,"starting":2286339.96,"new":24357.12,"expansion":13308.84,"contraction":0.0,"churned":5856.84,"ending":2318149.08,"nrr":100.3,"newCustomers":[{"id":1143,"plan":"Starter","mrr":533.19,"date":"2026-04-11"},{"id":1142,"plan":"Starter","mrr":530.43,"date":"2026-04-09"},{"id":1141,"plan":"Starter","mrr":504.64,"date":"2026-04-14"},{"id":1140,"plan":"Starter","mrr":461.5,"date":"2026-04-22"}],"expansionCustomers":[{"id":1099,"plan":"Growth","fromMrr":1502.15,"toMrr":2611.22,"delta":1109.07,"date":"2026-04-19"}],"contractionCustomers":[],"churnedCustomers":[{"id":1085,"plan":"Starter","mrr":488.07,"date":"2026-04-30"}]},{"month":"2026-05","label":"May 2026","short":"May","year":2026,"starting":2318149.08,"new":173973.24,"expansion":10458.72,"contraction":0.0,"churned":22514.88,"ending":2480066.16,"nrr":99.5,"newCustomers":[{"id":1144,"plan":"Enterprise","mrr":4228.2,"date":"2026-05-07"},{"id":1149,"plan":"Enterprise","mrr":4165.44,"date":"2026-05-25"},{"id":1150,"plan":"Enterprise","mrr":4088.88,"date":"2026-05-16"},{"id":1148,"plan":"Starter","mrr":571.14,"date":"2026-05-18"},{"id":1145,"plan":"Starter","mrr":533.69,"date":"2026-05-25"},{"id":1147,"plan":"Starter","mrr":470.34,"date":"2026-05-23"},{"id":1146,"plan":"Starter","mrr":440.08,"date":"2026-05-07"}],"expansionCustomers":[{"id":1090,"plan":"Growth","fromMrr":1553.67,"toMrr":2083.35,"delta":529.68,"date":"2026-05-13"},{"id":1125,"plan":"Growth","fromMrr":1309.2,"toMrr":1651.08,"delta":341.88,"date":"2026-05-25"}],"contractionCustomers":[],"churnedCustomers":[{"id":1127,"plan":"Growth","mrr":1431.24,"date":"2026-05-02"},{"id":1097,"plan":"Starter","mrr":445.0,"date":"2026-05-06"}]},{"month":"2026-06","label":"June 2026","short":"Jun","year":2026,"starting":2480066.16,"new":51837.84,"expansion":0.0,"contraction":30011.16,"churned":58634.4,"ending":2443258.44,"nrr":96.4,"newCustomers":[{"id":1152,"plan":"Growth","mrr":1455.32,"date":"2026-06-03"},{"id":1153,"plan":"Growth","mrr":1343.28,"date":"2026-06-26"},{"id":1154,"plan":"Starter","mrr":574.09,"date":"2026-06-04"},{"id":1155,"plan":"Starter","mrr":514.42,"date":"2026-06-20"},{"id":1151,"plan":"Starter","mrr":432.71,"date":"2026-06-28"}],"expansionCustomers":[],"contractionCustomers":[{"id":1137,"plan":"Enterprise","fromMrr":4066.95,"toMrr":2377.03,"delta":1689.92,"date":"2026-06-06"},{"id":1112,"plan":"Growth","fromMrr":1653.23,"toMrr":842.22,"delta":811.01,"date":"2026-06-19"}],"churnedCustomers":[{"id":1109,"plan":"Enterprise","mrr":4402.87,"date":"2026-06-05"},{"id":1111,"plan":"Starter","mrr":483.33,"date":"2026-06-03"}]}];
+
+function fmtDollars(x) {
+  const sign = x < 0 ? "-" : "";
+  const v = Math.abs(x);
+  if (v >= 1e6) return sign + "$" + (v/1e6).toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2}) + "M";
+  if (v >= 1e3) return sign + "$" + (v/1e3).toLocaleString("en-US", {maximumFractionDigits:0}) + "K";
+  return sign + "$" + v.toFixed(0);
+}
+function fmtFull(x) {
+  return "$" + x.toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function fmtPct(x) {
+  return x === null || x === undefined ? "—" : x.toFixed(1) + "%";
+}
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+
+// ---------- shared x-scale ----------
+const N = DATA.length;
+const marginL = 58, marginR = 16;
+const chartInnerW = 1100 - marginL - marginR;
+const bandW = chartInnerW / N;
+function xCenter(i) { return marginL + bandW * i + bandW / 2; }
+
+let selected = N - 1;
+const tooltip = document.getElementById("tooltip");
+
+function showTooltip(x, y, html) {
+  tooltip.innerHTML = "";
+  tooltip.appendChild(html);
+  tooltip.style.left = x + "px";
+  tooltip.style.top = (y - 10) + "px";
+  tooltip.classList.add("is-visible");
+}
+function hideTooltip() { tooltip.classList.remove("is-visible"); }
+
+function ttRow(swatchColor, label, value) {
+  const row = document.createElement("div");
+  row.className = "tt-row";
+  const key = document.createElement("span");
+  key.className = "tt-key";
+  if (swatchColor) {
+    const sw = document.createElement("span");
+    sw.className = "tt-swatch";
+    sw.style.background = swatchColor;
+    key.appendChild(sw);
+  }
+  const kt = document.createElement("span");
+  kt.textContent = label;
+  key.appendChild(kt);
+  row.appendChild(key);
+  const val = document.createElement("span");
+  val.className = "tt-val";
+  val.textContent = value;
+  row.appendChild(val);
+  return row;
+}
+
+// ---------- LINE CHART ----------
+const lineSvg = document.getElementById("lineChart");
+const LW = 1100, LH = 240, Lpad = {top: 18, bottom: 34};
+const lineInnerH = LH - Lpad.top - Lpad.bottom;
+const maxEnding = Math.max(...DATA.map(d => d.ending));
+const yMaxLine = maxEnding * 1.12;
+function yLine(v) { return Lpad.top + lineInnerH - (v / yMaxLine) * lineInnerH; }
+
+function niceTicks(max, count) {
+  const rough = max / count;
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough / mag;
+  const step = (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag;
+  const ticks = [];
+  for (let t = 0; t <= max; t += step) ticks.push(t);
+  return ticks;
+}
+
+function renderLineChart() {
+  lineSvg.innerHTML = "";
+  const ticks = niceTicks(yMaxLine, 5);
+  ticks.forEach(t => {
+    const y = yLine(t);
+    lineSvg.appendChild(el("line", {x1: marginL, x2: LW - marginR, y1: y, y2: y, class: "grid-line"}));
+    const lbl = el("text", {x: marginL - 10, y: y + 3, class: "axis-label", "text-anchor": "end"});
+    lbl.textContent = fmtDollars(t);
+    lineSvg.appendChild(lbl);
+  });
+
+  const pts = DATA.map((d, i) => [xCenter(i), yLine(d.ending)]);
+  const path = "M " + pts.map(p => p.join(",")).join(" L ");
+  lineSvg.appendChild(el("path", {d: path, class: "line-path"}));
+
+  DATA.forEach((d, i) => {
+    lineSvg.appendChild(el("rect", {
+      x: marginL + bandW * i, y: Lpad.top, width: bandW, height: lineInnerH,
+      class: "hover-band", "data-idx": i
+    }));
+  });
+
+  const crosshair = el("line", {x1: 0, x2: 0, y1: Lpad.top, y2: Lpad.top + lineInnerH, class: "crosshair"});
+  lineSvg.appendChild(crosshair);
+
+  DATA.forEach((d, i) => {
+    const [x, y] = pts[i];
+    const dot = el("circle", {cx: x, cy: y, r: i === selected ? 6 : 4, class: "line-dot" + (i === selected ? " is-selected" : ""), "data-idx": i, tabindex: "0", role: "button", "aria-label": d.label + ", ending ARR " + fmtFull(d.ending)});
+    lineSvg.appendChild(dot);
+  });
+
+  DATA.forEach((d, i) => {
+    if (i !== 0 && i !== N - 1) return;
+    const [x, y] = pts[i];
+    const lbl = el("text", {x, y: y - 12, class: "axis-label", "text-anchor": "middle"});
+    lbl.setAttribute("font-weight", "700");
+    lbl.textContent = fmtDollars(d.ending);
+    lineSvg.appendChild(lbl);
+  });
+
+  const monthTicks = [0, 6, 12, N-1];
+  monthTicks.forEach(i => {
+    const lbl = el("text", {x: xCenter(i), y: LH - 10, class: "axis-label", "text-anchor": "middle"});
+    lbl.textContent = DATA[i].short + " " + DATA[i].year;
+    lineSvg.appendChild(lbl);
+  });
+
+  function pointerToIdx(evt) {
+    const rect = lineSvg.getBoundingClientRect();
+    const scale = LW / rect.width;
+    const localX = (evt.clientX - rect.left) * scale;
+    let idx = Math.floor((localX - marginL) / bandW);
+    return Math.max(0, Math.min(N - 1, idx));
+  }
+
+  const hoverBands = lineSvg.querySelectorAll(".hover-band");
+  lineSvg.addEventListener("pointermove", (evt) => {
+    const idx = pointerToIdx(evt);
+    const d = DATA[idx];
+    const [x, y] = pts[idx];
+    crosshair.setAttribute("x1", x); crosshair.setAttribute("x2", x);
+    crosshair.style.opacity = 1;
+    hoverBands.forEach(b => { b.style.opacity = (+b.dataset.idx === idx) ? 0.5 : 0; });
+    const box = document.createElement("div");
+    const title = document.createElement("div");
+    title.className = "tt-title"; title.textContent = d.label;
+    box.appendChild(title);
+    box.appendChild(ttRow("var(--flow-new)", "Ending ARR", fmtFull(d.ending)));
+    showTooltip(evt.clientX, lineSvg.getBoundingClientRect().top, box);
+  });
+  lineSvg.addEventListener("pointerleave", () => {
+    crosshair.style.opacity = 0;
+    hoverBands.forEach(b => { b.style.opacity = 0; });
+    hideTooltip();
+  });
+  lineSvg.addEventListener("click", (evt) => { selectMonth(pointerToIdx(evt)); });
+  lineSvg.querySelectorAll(".line-dot").forEach(dot => {
+    dot.addEventListener("keydown", (evt) => {
+      if (evt.key === "Enter" || evt.key === " ") { evt.preventDefault(); selectMonth(+dot.dataset.idx); }
+    });
+  });
+}
+
+// ---------- BAR CHART ----------
+const barSvg = document.getElementById("barChart");
+const BW = 1100, BH = 380, Bpad = {top: 16, bottom: 40};
+const barInnerH = BH - Bpad.top - Bpad.bottom;
+const posMax = Math.max(...DATA.map(d => d.new + d.expansion));
+const negMax = Math.max(...DATA.map(d => d.contraction + d.churned));
+const yExtent = Math.max(posMax, negMax) * 1.2;
+// one linear scale across [-yExtent, yExtent] mapped to [Bpad.top, Bpad.top+barInnerH]
+function yBar(v) { return Bpad.top + barInnerH * (1 - (v + yExtent) / (2 * yExtent)); }
+const GAP = 2;
+const barPad = 0.22; // fraction of band reserved as inter-bar gap
+
+function roundedTopPath(x, y, w, h, r) {
+  r = Math.min(r, w/2, Math.max(h,0));
+  if (h <= 0) return "";
+  return `M ${x},${y+h} L ${x},${y+r} Q ${x},${y} ${x+r},${y} L ${x+w-r},${y} Q ${x+w},${y} ${x+w},${y+r} L ${x+w},${y+h} Z`;
+}
+function roundedBottomPath(x, y, w, h, r) {
+  r = Math.min(r, w/2, Math.max(h,0));
+  if (h <= 0) return "";
+  return `M ${x},${y} L ${x+w},${y} L ${x+w},${y+h-r} Q ${x+w},${y+h} ${x+w-r},${y+h} L ${x+r},${y+h} Q ${x},${y+h} ${x},${y+h-r} Z`;
+}
+function squarePath(x, y, w, h) {
+  if (h <= 0) return "";
+  return `M ${x},${y} L ${x+w},${y} L ${x+w},${y+h} L ${x},${y+h} Z`;
+}
+
+function renderBarChart() {
+  barSvg.innerHTML = "";
+  const ticks = niceTicks(yExtent, 4);
+  const allTicks = [...ticks.map(t => -t).reverse(), ...ticks.slice(1)];
+  allTicks.forEach(t => {
+    const y = yBar(t);
+    barSvg.appendChild(el("line", {x1: marginL, x2: BW - marginR, y1: y, y2: y, class: "grid-line"}));
+    const lbl = el("text", {x: marginL - 10, y: y + 3, class: "axis-label", "text-anchor": "end"});
+    lbl.textContent = fmtDollars(t);
+    barSvg.appendChild(lbl);
+  });
+
+  DATA.forEach((d, i) => {
+    const bx = marginL + bandW * i;
+    const band = el("rect", {x: bx, y: Bpad.top, width: bandW, height: barInnerH, class: "select-band" + (i === selected ? " is-selected" : ""), "data-idx": i});
+    barSvg.appendChild(band);
+  });
+
+  barSvg.appendChild(el("line", {x1: marginL, x2: BW - marginR, y1: yBar(0), y2: yBar(0), class: "baseline"}));
+
+  const barW = bandW * (1 - barPad);
+  DATA.forEach((d, i) => {
+    const bx = marginL + bandW * i + bandW * barPad / 2;
+    const yZero = yBar(0);
+
+    // hit target goes in first (behind the segments) so it only catches
+    // clicks in the dead space around the bars -- the colored segments,
+    // painted after, take priority for their own hover/click
+    const hit = el("rect", {x: bx - bandW*barPad/2, y: Bpad.top, width: bandW, height: barInnerH, class: "hit-col", "data-idx": i, tabindex: "0", role: "button", "aria-label": "Select " + d.label});
+    barSvg.appendChild(hit);
+
+    // positive stack: New (touches zero) then Expansion (outer tip)
+    const newTop = yBar(d.new);
+    const newH = yZero - newTop;
+    const hasExp = d.expansion > 0;
+    let newPath;
+    if (hasExp) newPath = squarePath(bx, newTop, barW, newH);
+    else newPath = roundedTopPath(bx, newTop, barW, newH, 4);
+    if (newH > 0.3) {
+      const seg = el("path", {d: newPath, fill: "var(--flow-new)", class: "bar-seg", tabindex: "0", role: "button",
+        "aria-label": d.label + ", New ARR " + fmtFull(d.new)});
+      seg.dataset.idx = i; seg.dataset.cat = "New"; seg.dataset.val = d.new; seg.dataset.color = "var(--flow-new)";
+      barSvg.appendChild(seg);
+    }
+
+    if (hasExp) {
+      const expTopVal = d.new + d.expansion;
+      const expTop = yBar(expTopVal);
+      const expBottom = yBar(d.new) - GAP;
+      const expH = expBottom - expTop;
+      const expPath = roundedTopPath(bx, expTop, barW, expH, 4);
+      if (expH > 0.3) {
+        const seg = el("path", {d: expPath, fill: "var(--flow-new-tint)", class: "bar-seg", tabindex: "0", role: "button",
+          "aria-label": d.label + ", Expansion ARR " + fmtFull(d.expansion)});
+        seg.dataset.idx = i; seg.dataset.cat = "Expansion"; seg.dataset.val = d.expansion; seg.dataset.color = "var(--flow-new-tint)";
+        barSvg.appendChild(seg);
+      }
+    }
+
+    // negative stack: Churn (touches zero) then Contraction (outer tip)
+    const churnBottom = yBar(-d.churned);
+    const churnH = churnBottom - yZero;
+    const hasCon = d.contraction > 0;
+    let churnPath;
+    if (hasCon) churnPath = squarePath(bx, yZero, barW, churnH);
+    else churnPath = roundedBottomPath(bx, yZero, barW, churnH, 4);
+    if (churnH > 0.3) {
+      const seg = el("path", {d: churnPath, fill: "var(--flow-neg)", class: "bar-seg", tabindex: "0", role: "button",
+        "aria-label": d.label + ", Churned ARR " + fmtFull(d.churned)});
+      seg.dataset.idx = i; seg.dataset.cat = "Churned"; seg.dataset.val = d.churned; seg.dataset.color = "var(--flow-neg)";
+      barSvg.appendChild(seg);
+    }
+
+    if (hasCon) {
+      const conTopY = churnBottom + GAP;
+      const conBottomVal = -(d.churned + d.contraction);
+      const conBottomY = yBar(conBottomVal);
+      const conH = conBottomY - conTopY;
+      const conPath = roundedBottomPath(bx, conTopY, barW, conH, 4);
+      if (conH > 0.3) {
+        const seg = el("path", {d: conPath, fill: "var(--flow-neg-tint)", class: "bar-seg", tabindex: "0", role: "button",
+          "aria-label": d.label + ", Contraction ARR " + fmtFull(d.contraction)});
+        seg.dataset.idx = i; seg.dataset.cat = "Contraction"; seg.dataset.val = d.contraction; seg.dataset.color = "var(--flow-neg-tint)";
+        barSvg.appendChild(seg);
+      }
+    }
+  });
+
+  const monthTicks = [];
+  for (let i = 0; i < N; i++) if (i % 2 === 0 || i === N - 1) monthTicks.push(i);
+  monthTicks.forEach(i => {
+    const lbl = el("text", {x: xCenter(i), y: BH - 12, class: "axis-label" + (i === selected ? " selected" : ""), "text-anchor": "middle", "data-idx": i});
+    lbl.textContent = DATA[i].short;
+    barSvg.appendChild(lbl);
+  });
+
+  barSvg.querySelectorAll(".bar-seg, .hit-col").forEach(node => {
+    node.addEventListener("click", () => selectMonth(+node.dataset.idx));
+    node.addEventListener("keydown", (evt) => {
+      if (evt.key === "Enter" || evt.key === " ") { evt.preventDefault(); selectMonth(+node.dataset.idx); }
+    });
+  });
+  barSvg.querySelectorAll(".bar-seg").forEach(seg => {
+    seg.addEventListener("pointermove", (evt) => {
+      const i = +seg.dataset.idx;
+      const box = document.createElement("div");
+      const title = document.createElement("div");
+      title.className = "tt-title"; title.textContent = DATA[i].label;
+      box.appendChild(title);
+      box.appendChild(ttRow(seg.dataset.color, seg.dataset.cat, fmtFull(+seg.dataset.val)));
+      showTooltip(evt.clientX, evt.clientY, box);
+    });
+    seg.addEventListener("pointerleave", hideTooltip);
+  });
+}
+
+// ---------- TABLE VIEW ----------
+function renderTable() {
+  const body = document.getElementById("dataTableBody");
+  body.innerHTML = "";
+  DATA.forEach(d => {
+    const tr = document.createElement("tr");
+    const cells = [d.label, fmtDollars(d.starting), fmtDollars(d.new), fmtDollars(d.expansion), fmtDollars(d.contraction), fmtDollars(d.churned), fmtDollars(d.ending), fmtPct(d.nrr)];
+    cells.forEach(c => { const td = document.createElement("td"); td.textContent = c; tr.appendChild(td); });
+    body.appendChild(tr);
+  });
+}
+document.getElementById("toggleTable").addEventListener("click", (evt) => {
+  const tv = document.getElementById("tableView");
+  const visible = tv.classList.toggle("is-visible");
+  evt.target.setAttribute("aria-expanded", visible ? "true" : "false");
+  evt.target.textContent = visible ? "Hide table" : "View as table";
+});
+
+// ---------- DRILLDOWN ----------
+function planClass(p) { return p.toLowerCase(); }
+
+function customerRow(id, plan, valueText, valueClass, meta) {
+  const li = document.createElement("li");
+  const row1 = document.createElement("div");
+  row1.className = "drill-row1";
+  const left = document.createElement("span");
+  left.className = "drill-id";
+  left.textContent = "#" + id;
+  const badge = document.createElement("span");
+  badge.className = "drill-plan " + planClass(plan);
+  badge.textContent = plan;
+  const leftWrap = document.createElement("span");
+  leftWrap.style.display = "flex"; leftWrap.style.gap = "6px"; leftWrap.style.alignItems = "center";
+  leftWrap.appendChild(left); leftWrap.appendChild(badge);
+  row1.appendChild(leftWrap);
+  const val = document.createElement("span");
+  val.className = "drill-val" + (valueClass ? " " + valueClass : "");
+  val.textContent = valueText;
+  row1.appendChild(val);
+  li.appendChild(row1);
+  if (meta) {
+    const m = document.createElement("div");
+    m.className = "drill-meta";
+    m.textContent = meta;
+    li.appendChild(m);
+  }
+  return li;
+}
+
+function renderPanel(key, label, amount, items, builder) {
+  const panel = document.createElement("div");
+  panel.className = "drill-panel " + key;
+  const head = document.createElement("div");
+  head.className = "drill-panel-head";
+  const name = document.createElement("span"); name.className = "name"; name.textContent = label;
+  const amt = document.createElement("span"); amt.className = "amount"; amt.textContent = fmtDollars(amount);
+  head.appendChild(name); head.appendChild(amt);
+  panel.appendChild(head);
+  if (!items.length) {
+    const empty = document.createElement("div");
+    empty.className = "drill-empty";
+    empty.textContent = "No customers this month.";
+    panel.appendChild(empty);
+    return panel;
+  }
+  const list = document.createElement("ul");
+  list.className = "drill-list";
+  items.forEach(it => list.appendChild(builder(it)));
+  panel.appendChild(list);
+  return panel;
+}
+
+function renderDrilldown(i) {
+  const d = DATA[i];
+  document.getElementById("drillTitle").textContent = d.label;
+
+  const recon = document.getElementById("reconLine");
+  recon.innerHTML = "";
+  const parts = [
+    ["Start", fmtDollars(d.starting), ""],
+    ["+ New", fmtDollars(d.new), "plus"],
+    ["+ Exp", fmtDollars(d.expansion), "plus"],
+    ["− Con", fmtDollars(d.contraction), "minus"],
+    ["− Churn", fmtDollars(d.churned), "minus"],
+  ];
+  parts.forEach(([label, val], idx) => {
+    if (idx > 0) recon.appendChild(document.createTextNode(" "));
+    const span = document.createElement("span");
+    span.className = parts[idx][2] || "";
+    span.textContent = label + " " + val;
+    recon.appendChild(span);
+  });
+  const eq = document.createElement("span"); eq.className = "op"; eq.textContent = " = End ";
+  recon.appendChild(eq);
+  const endVal = document.createElement("b"); endVal.textContent = fmtDollars(d.ending);
+  recon.appendChild(endVal);
+  const computed = d.starting + d.new + d.expansion - d.contraction - d.churned;
+  const ok = Math.abs(computed - d.ending) < 1;
+  const check = document.createElement("span");
+  check.className = "recon-check";
+  check.textContent = ok ? "Reconciles" : "Mismatch";
+  if (!ok) { check.style.background = "var(--critical-bg)"; check.style.color = "var(--critical)"; }
+  recon.appendChild(document.createTextNode(" "));
+  recon.appendChild(check);
+
+  const nrrPill = document.createElement("span");
+  nrrPill.className = "nrr-pill" + (d.nrr === null ? "" : d.nrr >= 100 ? " pos" : " neg");
+  nrrPill.textContent = "NRR " + fmtPct(d.nrr);
+  recon.appendChild(nrrPill);
+
+  const grid = document.getElementById("drillGrid");
+  grid.innerHTML = "";
+  grid.appendChild(renderPanel("new", "New", d.new, d.newCustomers, (c) =>
+    customerRow(c.id, c.plan, fmtDollars(c.mrr) + "/mo", "pos", "started " + c.date)));
+  grid.appendChild(renderPanel("expansion", "Expansion", d.expansion, d.expansionCustomers, (c) =>
+    customerRow(c.id, c.plan, "+" + fmtDollars(c.delta) + "/mo", "pos", fmtDollars(c.fromMrr) + " → " + fmtDollars(c.toMrr) + " · " + c.date)));
+  grid.appendChild(renderPanel("contraction", "Contraction", d.contraction, d.contractionCustomers, (c) =>
+    customerRow(c.id, c.plan, "−" + fmtDollars(c.delta) + "/mo", "neg", fmtDollars(c.fromMrr) + " → " + fmtDollars(c.toMrr) + " · " + c.date)));
+  grid.appendChild(renderPanel("churned", "Churned", d.churned, d.churnedCustomers, (c) =>
+    customerRow(c.id, c.plan, "−" + fmtDollars(c.mrr) + "/mo", "neg", "ended " + c.date)));
+}
+
+// ---------- NRR CHART ----------
+const nrrSvg = document.getElementById("nrrChart");
+const RW = 1100, RH = 190, Rpad = {top: 18, bottom: 34};
+const rInnerH = RH - Rpad.top - Rpad.bottom;
+const nrrValues = DATA.map(d => d.nrr).filter(v => v !== null);
+const nrrMin = Math.min(...nrrValues, 100);
+const nrrMax = Math.max(...nrrValues, 100);
+const nrrPad = Math.max(2, (nrrMax - nrrMin) * 0.2);
+const nrrLo = Math.floor(nrrMin - nrrPad);
+const nrrHi = Math.ceil(nrrMax + nrrPad);
+function yNrr(v) { return Rpad.top + rInnerH * (1 - (v - nrrLo) / (nrrHi - nrrLo)); }
+
+function renderNrrChart() {
+  nrrSvg.innerHTML = "";
+  const step = (nrrHi - nrrLo) > 20 ? 10 : 5;
+  for (let t = Math.ceil(nrrLo / step) * step; t <= nrrHi; t += step) {
+    const y = yNrr(t);
+    nrrSvg.appendChild(el("line", {x1: marginL, x2: RW - marginR, y1: y, y2: y, class: "grid-line"}));
+    const lbl = el("text", {x: marginL - 10, y: y + 3, class: "axis-label", "text-anchor": "end"});
+    lbl.textContent = t + "%";
+    nrrSvg.appendChild(lbl);
+  }
+  // 100% is the retention-neutral reference: existing customers generated
+  // exactly as much ARR as they started with. Drawn heavier than the grid.
+  const y100 = yNrr(100);
+  nrrSvg.appendChild(el("line", {x1: marginL, x2: RW - marginR, y1: y100, y2: y100, class: "baseline"}));
+  const refLbl = el("text", {x: RW - marginR, y: y100 - 5, class: "axis-label", "text-anchor": "end"});
+  refLbl.textContent = "100% (no net change)";
+  nrrSvg.appendChild(refLbl);
+
+  const segments = [];
+  let current = [];
+  DATA.forEach((d, i) => {
+    if (d.nrr === null) {
+      if (current.length) segments.push(current);
+      current = [];
+    } else {
+      current.push([xCenter(i), yNrr(d.nrr), i]);
+    }
+  });
+  if (current.length) segments.push(current);
+
+  segments.forEach(seg => {
+    const path = "M " + seg.map(p => p[0] + "," + p[1]).join(" L ");
+    nrrSvg.appendChild(el("path", {d: path, class: "line-path", style: "stroke:var(--accent)"}));
+  });
+
+  DATA.forEach((d, i) => {
+    if (d.nrr === null) return;
+    const x = xCenter(i), y = yNrr(d.nrr);
+    const dot = el("circle", {
+      cx: x, cy: y, r: i === selected ? 6 : 4,
+      class: "line-dot" + (i === selected ? " is-selected" : ""),
+      style: "fill:" + (d.nrr >= 100 ? "var(--good)" : "var(--critical)"),
+      "data-idx": i, tabindex: "0", role: "button",
+      "aria-label": d.label + ", net revenue retention " + fmtPct(d.nrr),
+    });
+    nrrSvg.appendChild(dot);
+  });
+
+  function pointerToIdx(evt) {
+    const rect = nrrSvg.getBoundingClientRect();
+    const scale = RW / rect.width;
+    const localX = (evt.clientX - rect.left) * scale;
+    let idx = Math.floor((localX - marginL) / bandW);
+    return Math.max(0, Math.min(N - 1, idx));
+  }
+  nrrSvg.addEventListener("pointermove", (evt) => {
+    const idx = pointerToIdx(evt);
+    const d = DATA[idx];
+    const box = document.createElement("div");
+    const title = document.createElement("div");
+    title.className = "tt-title"; title.textContent = d.label;
+    box.appendChild(title);
+    box.appendChild(ttRow("var(--accent)", "NRR", fmtPct(d.nrr)));
+    showTooltip(evt.clientX, nrrSvg.getBoundingClientRect().top, box);
+  });
+  nrrSvg.addEventListener("pointerleave", hideTooltip);
+  nrrSvg.addEventListener("click", (evt) => selectMonth(pointerToIdx(evt)));
+  nrrSvg.querySelectorAll(".line-dot").forEach(dot => {
+    dot.addEventListener("keydown", (evt) => {
+      if (evt.key === "Enter" || evt.key === " ") { evt.preventDefault(); selectMonth(+dot.dataset.idx); }
+    });
+  });
+}
+
+function renderAvgNrr() {
+  const avg = nrrValues.reduce((a, b) => a + b, 0) / nrrValues.length;
+  const el2 = document.getElementById("avgNrrValue");
+  el2.textContent = fmtPct(avg);
+  el2.className = "value " + (avg >= 100 ? "good" : "critical");
+}
+
+function termRow(sign, label, value, cls) {
+  const row = document.createElement("div");
+  row.className = "term";
+  const left = document.createElement("span");
+  left.className = "t-label";
+  if (sign) {
+    const s = document.createElement("span");
+    s.className = "t-sign " + cls;
+    s.textContent = sign;
+    left.appendChild(s);
+  }
+  const lt = document.createElement("span");
+  lt.textContent = label;
+  left.appendChild(lt);
+  row.appendChild(left);
+  const val = document.createElement("span");
+  val.className = "t-val";
+  val.textContent = value;
+  row.appendChild(val);
+  return row;
+}
+
+function renderNrrMath(i) {
+  const d = DATA[i];
+  document.getElementById("nrrMathMonth").textContent = d.label;
+
+  const body = document.getElementById("nrrMathBody");
+  body.innerHTML = "";
+
+  if (d.starting <= 0) {
+    const note = document.createElement("div");
+    note.className = "nrr-note";
+    note.textContent = d.label + " has no prior existing-customer base to measure retention against (starting ARR is $0), so NRR is undefined for this month.";
+    body.appendChild(note);
+    return;
+  }
+
+  const frac = document.createElement("div");
+  frac.className = "nrr-frac";
+  const numLabel = document.createElement("div");
+  numLabel.className = "num-label";
+  numLabel.textContent = "Retained ARR (existing customers)";
+  frac.appendChild(numLabel);
+  frac.appendChild(termRow("", "Starting ARR", fmtDollars(d.starting)));
+  frac.appendChild(termRow("+", "Expansion", fmtDollars(d.expansion), "plus"));
+  frac.appendChild(termRow("−", "Contraction", fmtDollars(d.contraction), "minus"));
+  frac.appendChild(termRow("−", "Churned", fmtDollars(d.churned), "minus"));
+  const bar = document.createElement("div");
+  bar.className = "bar";
+  frac.appendChild(bar);
+  const denRow = termRow("", "Starting ARR", fmtDollars(d.starting));
+  denRow.classList.add("den");
+  frac.appendChild(denRow);
+  body.appendChild(frac);
+
+  const eq = document.createElement("div");
+  eq.className = "nrr-equals";
+  eq.textContent = "=";
+  body.appendChild(eq);
+
+  const retained = d.starting + d.expansion - d.contraction - d.churned;
+  const result = document.createElement("div");
+  result.className = "nrr-result";
+  const rl = document.createElement("div");
+  rl.className = "r-label";
+  rl.textContent = "NRR";
+  const rv = document.createElement("div");
+  rv.className = "r-value " + (d.nrr >= 100 ? "pos" : "neg");
+  rv.textContent = fmtPct(d.nrr);
+  result.appendChild(rl);
+  result.appendChild(rv);
+  body.appendChild(result);
+
+  const note = document.createElement("div");
+  note.className = "nrr-note";
+  const gap = Math.abs(d.expansion - (d.contraction + d.churned));
+  if (d.nrr >= 100) {
+    note.append("Expansion (", strong(fmtDollars(d.expansion)), ") outweighed contraction + churn (",
+      strong(fmtDollars(d.contraction + d.churned)), ") by ", strong(fmtDollars(gap)),
+      " — existing customers grew net ARR this month.");
+  } else {
+    note.append("Contraction + churn (", strong(fmtDollars(d.contraction + d.churned)), ") outweighed expansion (",
+      strong(fmtDollars(d.expansion)), ") by ", strong(fmtDollars(gap)),
+      " — existing customers shrank net ARR this month.");
+  }
+  body.appendChild(note);
+}
+function strong(text) {
+  const b = document.createElement("b");
+  b.textContent = text;
+  return b;
+}
+
+function selectMonth(i) {
+  selected = i;
+  renderLineChart();
+  renderBarChart();
+  renderNrrChart();
+  renderNrrMath(i);
+  renderDrilldown(i);
+}
+
+renderLineChart();
+renderBarChart();
+renderNrrChart();
+renderAvgNrr();
+renderNrrMath(selected);
+renderTable();
+renderDrilldown(selected);
+</script>
