@@ -9,7 +9,7 @@ import unittest
 
 import pandas as pd
 
-from arr_waterfall import active_mrr_total, add_sanity_check, build_waterfall
+from arr_waterfall import active_mrr_total, add_nrr, add_sanity_check, build_waterfall
 
 
 def make_df(rows):
@@ -108,6 +108,48 @@ class TestWaterfallReconciles(unittest.TestCase):
         self.assertEqual(by_month.loc["2025-03", "expansion_arr"], 6000)  # (1500-1000)*12
         self.assertEqual(by_month.loc["2025-04", "churned_arr"], 6000)  # 500*12
         self.assertEqual(by_month.loc["2025-04", "ending_arr"], 18000)  # customer 1 only
+
+
+class TestNRR(unittest.TestCase):
+    def test_nrr_excludes_new_arr_and_reflects_existing_cohort(self):
+        waterfall = pd.DataFrame(
+            {
+                "starting_arr": [1000.0],
+                "new_arr": [5000.0],  # should have no effect on NRR
+                "expansion_arr": [200.0],
+                "contraction_arr": [50.0],
+                "churned_arr": [100.0],
+            }
+        )
+        result = add_nrr(waterfall)
+        # (1000 + 200 - 50 - 100) / 1000 * 100 = 105.0
+        self.assertEqual(result.loc[0, "nrr_pct"], 105.0)
+
+    def test_nrr_is_nan_when_no_prior_starting_arr(self):
+        waterfall = pd.DataFrame(
+            {
+                "starting_arr": [0.0],
+                "new_arr": [1000.0],
+                "expansion_arr": [0.0],
+                "contraction_arr": [0.0],
+                "churned_arr": [0.0],
+            }
+        )
+        result = add_nrr(waterfall)
+        self.assertTrue(pd.isna(result.loc[0, "nrr_pct"]))
+
+    def test_full_churn_month_gives_zero_nrr(self):
+        waterfall = pd.DataFrame(
+            {
+                "starting_arr": [6000.0],
+                "new_arr": [0.0],
+                "expansion_arr": [0.0],
+                "contraction_arr": [0.0],
+                "churned_arr": [6000.0],
+            }
+        )
+        result = add_nrr(waterfall)
+        self.assertEqual(result.loc[0, "nrr_pct"], 0.0)
 
 
 if __name__ == "__main__":
